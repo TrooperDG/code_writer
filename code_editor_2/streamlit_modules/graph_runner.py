@@ -4,15 +4,23 @@ from langgraph.types import Command
 from state import FlowState
 
 
-async def run_initial_graph_streaming(
-    query: str, workspace_dir: str, config: dict, status_container
-):
-    initial_state = FlowState(query=query, workspace_dir=workspace_dir)
+async def stream_graph_status(input_state, config: dict, status_container):
     thinking_text = ""
+    status_container.markdown("Preparing your request...")
 
     # Stream graph events
-    async for event in graph.astream_events(initial_state, config=config, version="v2"):
+    async for event in graph.astream_events(input_state, config=config, version="v2"):
         kind = event["event"]
+        node_name = event.get("metadata", {}).get("langgraph_node")
+
+        if kind == "on_chain_start" and node_name == "generate_code":
+            status_container.update(
+                label="Thinking through the code...", state="running", expanded=True
+            )
+        elif kind == "on_chain_start" and node_name == "human_code_review":
+            status_container.update(
+                label="Preparing code review...", state="running", expanded=True
+            )
 
         # Stream LLM tokens in real-time
         if kind == "on_chat_model_stream":
@@ -29,10 +37,39 @@ async def run_initial_graph_streaming(
                 thinking_text += reasoning_chunk
                 status_container.markdown(thinking_text)
 
+    return thinking_text
+
+
+async def run_initial_graph_streaming(
+    query: str, workspace_dir: str, config: dict, status_container
+):
+    initial_state = FlowState(query=query, workspace_dir=workspace_dir)
+    return await stream_graph_status(initial_state, config, status_container)
+
+
+async def run_resume_graph_streaming(
+    approved: bool, feedback: str, config: dict, status_container
+):
+    approval_payload = {"approved": approved, "feedback": feedback}
+    return await stream_graph_status(
+        Command(resume=approval_payload), config, status_container
+    )
+
 
 def render_graph_streaming(query: str, workspace_dir: str, config: dict, status_box):
     """Bridge async streaming to synchronous Streamlit runs."""
-    asyncio.run(run_initial_graph_streaming(query, workspace_dir, config, status_box))
+    return asyncio.run(
+        run_initial_graph_streaming(query, workspace_dir, config, status_box)
+    )
+
+
+def render_resume_graph_streaming(
+    approved: bool, feedback: str, config: dict, status_box
+):
+    """Bridge async graph resume streaming to synchronous Streamlit runs."""
+    return asyncio.run(
+        run_resume_graph_streaming(approved, feedback, config, status_box)
+    )
 
 
 def resume_graph_with_approval(approved: bool, feedback: str, config: dict):

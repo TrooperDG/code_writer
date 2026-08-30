@@ -19,6 +19,8 @@ if "graph_running" not in st.session_state:
     st.session_state.graph_running = False
 if "chat_history" not in st.session_state:
     st.session_state.chat_history = []
+if "current_reasoning" not in st.session_state:
+    st.session_state.current_reasoning = ""
 
 config = {"configurable": {"thread_id": st.session_state.thread_id}}
 
@@ -30,6 +32,7 @@ if st.sidebar.button("Clear / New Session"):
     st.session_state.thread_id = str(uuid.uuid4())
     st.session_state.graph_running = False
     st.session_state.chat_history = []
+    st.session_state.current_reasoning = ""
     st.rerun()
 
 # 2. Render Existing Chat History
@@ -62,6 +65,7 @@ else:
     if user_query:
         st.session_state.chat_history.append({"role": "user", "content": user_query})
         st.session_state.graph_running = True
+        st.session_state.current_reasoning = ""
 
         # Render the streaming thinking block live into UI
         render_streaming_thinking_area(user_query, workspace_dir, config)

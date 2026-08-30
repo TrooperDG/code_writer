@@ -10,6 +10,7 @@ class FlowState(BaseModel):
     # code_generator ---
     generated_code: str = ""
     code_explanation: str = ""
+    reasoning_content: str = ""
     generated_code_feedback: str = ""
     generated_code_approve: bool = False
 
